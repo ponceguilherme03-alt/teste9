@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ADT Tabuleiros - Consolidado Multi-Chapa & Sobras Globais em Tempo Real</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --primary: #e65100;
+      --primary-dark: #bf360c;
+      --bg: #121212;
+      --surface: #1e1e1e;
+      --surface-card: #252525;
+      --text: #ffffff;
+      --text-muted: #aaa;
+      --border: #333;
+      --success: #4caf50;
+      --warning: #ff9800;
+      --danger: #f44336;
+      --info: #2196f3;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding-bottom: 40px; }
+    header { background: #000; border-bottom: 2px solid var(--primary); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+    .logo-badge { background: var(--primary); color: #fff; font-weight: bold; padding: 6px 12px; border-radius: 6px; }
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); display: flex; overflow-x: auto; }
+    nav button { background: none; border: none; color: var(--text-muted); padding: 14px 20px; font-size: 13px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; }
+    nav button.active { color: var(--primary); border-bottom-color: var(--primary); background: rgba(230,81,0,0.1); }
+    main { padding: 20px; max-width: 1400px; margin: 0 auto; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+    @media(max-width: 900px) { .grid-2, .grid-4 { grid-template-columns: 1fr; } }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 18px; margin-bottom: 20px; }
+    .card h3 { font-size: 15px; color: var(--primary); margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+    .kpi-card { background: var(--surface-card); border-left: 4px solid var(--primary); padding: 15px; border-radius: 6px; }
+    .kpi-title { font-size: 12px; color: var(--text-muted); text-transform: uppercase; }
+    .kpi-val { font-size: 22px; font-weight: bold; margin-top: 5px; color: #fff; }
+    form label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+    form input, form select { width: 100%; padding: 8px 10px; background: #2a2a2a; border: 1px solid var(--border); border-radius: 5px; color: #fff; margin-bottom: 10px; font-size: 12px; }
+    .btn { background: var(--primary); color: #fff; border: none; padding: 8px 14px; border-radius: 5px; font-weight: 600; cursor: pointer; font-size: 12px; }
+    .btn-sm { padding: 5px 10px; font-size: 11px; }
+    .btn-success { background: var(--success); }
+    .btn-warning { background: var(--warning); color: #000; }
+    .btn-info { background: var(--info); }
+    .btn-danger { background: var(--danger); }
+    .btn-secondary { background: #333; color: #fff; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+    th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { background: #252525; color: var(--text-muted); }
+    .badge { padding: 3px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block; }
+    .badge-ok { background: rgba(76, 175, 80, 0.2); color: var(--success); border: 1px solid var(--success); }
+    .badge-corte { background: rgba(33, 150, 243, 0.2); color: var(--info); border: 1px solid var(--info); }
+    .badge-pausa { background: rgba(255, 152, 0, 0.2); color: var(--warning); border: 1px solid var(--warning); }
+    .badge-pendente { background: rgba(255, 255, 255, 0.1); color: #aaa; border: 1px solid #555; }
+    .badge-archived { background: rgba(156, 39, 176, 0.2); color: #e040fb; border: 1px solid #e040fb; }
+    .laser-card { background: var(--surface-card); border: 1px solid var(--border); border-radius: 6px; padding: 12px; }
+    .operador-item { background: #2a2a2a; padding: 10px; border-radius: 5px; margin-bottom: 10px; border-left: 4px solid var(--primary); }
+    .progress-bar { background: #333; height: 16px; border-radius: 8px; overflow: hidden; position: relative; margin-top: 5px; }
+    .progress-fill { height: 100%; background: var(--primary); transition: width 0.3s; }
+    .progress-text { position: absolute; width: 100%; text-align: center; font-size: 10px; line-height: 16px; font-weight: bold; color: #fff; top: 0; }
+    .linha-comp { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+    
+    #screen-login { position: fixed; top:0; left:0; width:100vw; height:100vh; background: #000; z-index: 9999; display: flex; justify-content: center; align-items: center; }
+    .login-box { background: var(--surface); border: 1px solid var(--primary); border-radius: 8px; padding: 30px; width: 100%; max-width: 380px; box-shadow: 0 4px 20px rgba(230,81,0,0.3); }
+    .sugestao-box { background: rgba(33, 150, 243, 0.1); border: 1px solid var(--info); padding: 12px; border-radius: 6px; margin-top: 15px; }
+  </style>
+</head>
+<body>
+
+  <!-- LOGIN -->
+  <div id="screen-login">
+    <div class="login-box">
+      <div style="text-align:center; margin-bottom:20px;">
+        <span class="logo-badge" style="font-size:20px; padding:8px 16px;">ADT Tabuleiros</span>
+        <h2 style="font-size:16px; margin-top:10px; color:#fff;">Acesso ao Sistema PCP</h2>
+      </div>
+      <form onsubmit="realizarLogin(event)">
+        <label>Usuário:</label>
+        <input type="text" id="login-usuario" placeholder="Digite seu usuário..." required>
+        <label>Senha:</label>
+        <input type="password" id="login-senha" placeholder="Digite sua senha..." required>
+        <div id="login-erro" style="color:var(--danger); font-size:11px; margin-bottom:10px; display:none;">Usuário ou senha incorretos.</div>
+        <button type="submit" class="btn" style="width:100%; padding:10px;">Entrar no Sistema</button>
+      </form>
+    </div>
+  </div>
+
+  <header>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div class="logo-badge">ADT</div>
+      <div>
+        <h1 style="font-size:16px;">ADT Tabuleiros</h1>
+        <p style="font-size:11px; color:#aaa;">PCP - Balanço Consolidado Multi-Chapa & Sobras Reais</p>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:15px;">
+      <span id="user-display" style="font-size:12px; color:var(--primary); font-weight:bold;"></span>
+      <button class="btn btn-sm btn-secondary" onclick="fazerLogout()">Sair 🚪</button>
+    </div>
+  </header>
+
+  <nav id="nav-principal"></nav>
+
+  <main id="app-main" style="display:none;">
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="tab-content">
+      <div class="card" style="border-color: var(--info);">
+        <h3><span>⚡ Status ao Vivo dos 4 Lasers</span> <span style="font-size:11px; color:var(--info);">Gestão à Vista</span></h3>
+        <div class="grid-4" id="grid-ao-vivo-diretoria"></div>
+      </div>
+
+      <div class="grid-4" style="margin-bottom: 20px;">
+        <div class="kpi-card"><div class="kpi-title">Chapas Cortadas</div><div class="kpi-val" id="kpi-chapas-mes">0</div></div>
+        <div class="kpi-card"><div class="kpi-title">MDF Processado</div><div class="kpi-val" id="kpi-mdf-mes">0.0 m²</div></div>
+        <div class="kpi-card"><div class="kpi-title">Peças Cortadas</div><div class="kpi-val" id="kpi-pecas-mes">0</div></div>
+        <div class="kpi-card"><div class="kpi-title">Remessas Ativas</div><div class="kpi-val" id="kpi-remessas-ativas" style="color:var(--warning)">0</div></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Produção por Máquina Laser (Chapas)</h3>
+          <canvas id="chartLasers" height="180"></canvas>
+        </div>
+        <div class="card">
+          <h3>Status das Remessas (%)</h3>
+          <canvas id="chartRemessas" height="180"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRODUTOS & ESTOQUE -->
+    <div id="banco-produtos" class="tab-content">
+      <div class="grid-2">
+        <div class="card">
+          <h3>Cadastrar / Ajustar Estoque Físico</h3>
+          <form onsubmit="cadastrarProduto(event)">
+            <label>Nome / Medida do Produto (Ex: Redondo 35cm):</label>
+            <input type="text" id="prod-nome" placeholder="Ex: Redondo 35cm" required>
+            <div class="grid-2">
+              <div>
+                <label>SKU (Opcional):</label>
+                <input type="text" id="prod-sku" placeholder="Ex: RED-350">
+              </div>
+              <div>
+                <label>Estoque Físico Inicial:</label>
+                <input type="number" id="prod-estoque" placeholder="Ex: 150" value="0">
+              </div>
+            </div>
+            <button type="submit" class="btn btn-success">Salvar Produto / Saldo</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>Estoque Físico em Tempo Real</h3>
+          <table>
+            <thead>
+              <tr><th>Produto</th><th>SKU</th><th>Saldo Físico Atual</th><th>Ações</th></tr>
+            </thead>
+            <tbody id="tb-produtos-lista"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- OPERADORES -->
+    <div id="cadastro-operadores" class="tab-content">
+      <div class="grid-2">
+        <div class="card">
+          <h3>Cadastrar Operador de Máquina</h3>
+          <form onsubmit="cadastrarOperadorFixo(event)">
+            <label>Nome do Operador:</label>
+            <input type="text" id="op-nome-novo" placeholder="Ex: João Silva" required>
+            <button type="submit" class="btn btn-success">Cadastrar Operador</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>Operadores Habilitados</h3>
+          <table>
+            <thead>
+              <tr><th>Nome do Operador</th><th>Status</th><th>Ações</th></tr>
+            </thead>
+            <tbody id="tb-operadores-lista"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- BANCO DE CHAPAS -->
+    <div id="banco-chapas" class="tab-content">
+      <div class="grid-2">
+        <div class="card">
+          <h3>Cadastrar Chapa / Nesting</h3>
+          <form onsubmit="cadastrarChapa(event)">
+            <label>Código da Chapa (Ex: Ch30_MIX):</label>
+            <input type="text" id="chapa-codigo" placeholder="Ex: Ch30_MIX" required>
+
+            <div class="grid-2">
+              <div>
+                <label>Tempo de Corte (minutos):</label>
+                <input type="number" id="chapa-tempo" placeholder="Ex: 12" required>
+              </div>
+              <div>
+                <label>Espessura MDF:</label>
+                <select id="chapa-mdf">
+                  <option value="3mm">3mm</option>
+                  <option value="6mm">6mm</option>
+                </select>
+              </div>
+            </div>
+
+            <h4 style="font-size:12px; color:var(--primary); margin:10px 0;">Composição da Chapa:</h4>
+            <div id="itens-chapa-container"></div>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="addComposicaoItem()" style="margin-bottom:10px;">+ Adicionar Produto</button>
+            <br>
+            <button type="submit" class="btn btn-success">Salvar Chapa</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>Biblioteca de Chapas Cadastradas</h3>
+          <div id="lista-banco-chapas"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CRIAR REMESSA DO DIA -->
+    <div id="remessas" class="tab-content">
+      <div class="grid-2">
+        <div class="card">
+          <h3>1. Lançar Pedidos do Cliente</h3>
+          <form onsubmit="adicionarItemRemessa(event)">
+            <div class="grid-2">
+              <div>
+                <label>Nome / Código da Remessa:</label>
+                <input type="text" id="remessa-nome" value="Remessa 2810" required>
+              </div>
+              <div>
+                <label>Data de Programação:</label>
+                <input type="date" id="remessa-data" required>
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <div>
+                <label>Produto / Medida:</label>
+                <select id="remessa-produto" required></select>
+              </div>
+              <div>
+                <label>Quantidade Pedida pelo Cliente:</label>
+                <input type="number" id="remessa-qtd" placeholder="Ex: 300" required>
+              </div>
+            </div>
+            <button type="submit" class="btn">Adicionar Item ao Pedido</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>2. Balanço do Pedido vs. Estoque Físico</h3>
+          <table>
+            <thead>
+              <tr><th>Produto</th><th>Pedido</th><th>Estoque Abatido</th><th>Necessidade Real de Corte</th><th>Ação</th></tr>
+            </thead>
+            <tbody id="tb-remessa-itens"></tbody>
+          </table>
+
+          <button class="btn btn-info" style="width:100%; margin-top:15px;" onclick="calcularSugestaoChapas()">🔍 Calcular Quais & Quantas Chapas Cortar ➔</button>
+
+          <div id="box-sugestao-chapas" class="sugestao-box" style="display:none;">
+            <h4 style="color:var(--info); font-size:13px; margin-bottom:8px;">💡 Plano de Corte Sugerido pelo PCP:</h4>
+            <div id="conteudo-sugestao"></div>
+            <button class="btn btn-warning" style="width:100%; margin-top:12px; padding:10px;" onclick="aprovarEEnviarParaLasers()">⚡ Aprovar Plano e Atualizar Estoque Instantaneamente ➔</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAINEL DO PROGRAMADOR -->
+    <div id="acompanhamento-remessas" class="tab-content">
+      <div class="card">
+        <h3>
+          <span>Painel do Programador — Balanço Consolidado da Remessa</span>
+          <button class="btn btn-sm btn-secondary" onclick="arquivarRemessasConcluidas()">🧹 Arquivar Concluídas</button>
+        </h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Identificação</th>
+              <th>Progresso</th>
+              <th>Chapas Cortadas</th>
+              <th>Status Geral</th>
+              <th>Ações PCP</th>
+            </tr>
+          </thead>
+          <tbody id="tb-status-remessas"></tbody>
+        </table>
+      </div>
+
+      <div id="detalhes-remessas-container"></div>
+    </div>
+
+    <!-- OPERAÇÃO LASERS -->
+    <div id="painel-operadores" class="tab-content">
+      <div class="card">
+        <h3>Painel dos 4 Lasers — Operação em Chão de Fábrica</h3>
+        <p style="font-size:12px; color:#aaa; margin-bottom:15px;">Acompanhamento de corte em tempo real.</p>
+      </div>
+
+      <div class="grid-4" id="grid-painel-4-lasers"></div>
+    </div>
+
+    <!-- HISTÓRICO -->
+    <div id="historico-remessas" class="tab-content">
+      <div class="card">
+        <h3>📁 Histórico Geral de Remessas Finalizadas</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Remessa</th>
+              <th>Detalhes das Chapas</th>
+              <th>Status do Ciclo</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tb-historico-remessas"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const usuariosSistema = [
+      { usuario: 'diretoria', senha: 'adt2026', perfil: 'diretoria', nome: 'Diretoria / Guilherme' },
+      { usuario: 'pcp', senha: 'pcp123', perfil: 'pcp', nome: 'Programador PCP' },
+      { usuario: 'operador', senha: 'laser123', perfil: 'operador', nome: 'Operador de Fábrica' }
+    ];
+
+    let usuarioLogado = null;
+
+    function salvarDadosLocais() {
+      const db = {
+        produtosCadastrados,
+        operadoresCadastrados,
+        bancoChapas,
+        remessasFilaPCP,
+        remessasGerais,
+        lotesLasers
+      };
+      localStorage.setItem('adt_pcp_db_v3', JSON.stringify(db));
+    }
+
+    function carregarDadosLocais() {
+      const data = localStorage.getItem('adt_pcp_db_v3');
+      if (data) {
+        try {
+          const db = JSON.parse(data);
+          produtosCadastrados = db.produtosCadastrados || produtosCadastrados;
+          operadoresCadastrados = db.operadoresCadastrados || operadoresCadastrados;
+          bancoChapas = db.bancoChapas || bancoChapas;
+          remessasFilaPCP = db.remessasFilaPCP || [];
+          remessasGerais = db.remessasGerais || [];
+          lotesLasers = db.lotesLasers || [];
+        } catch(e) {
+          console.error('Erro ao carregar banco local', e);
+        }
+      }
+    }
+
+    function realizarLogin(e) {
+      e.preventDefault();
+      const u = document.getElementById('login-usuario').value.trim();
+      const s = document.getElementById('login-senha').value.trim();
+
+      const achou = usuariosSistema.find(x => x.usuario.toLowerCase() === u.toLowerCase() && x.senha === s);
+
+      if (achou) {
+        usuarioLogado = achou;
+        sessionStorage.setItem('adt_user', JSON.stringify(achou));
+        document.getElementById('screen-login').style.display = 'none';
+        document.getElementById('app-main').style.display = 'block';
+        document.getElementById('user-display').innerText = `👤 ${achou.nome} (${achou.perfil.toUpperCase()})`;
+        
+        configurarMenuPorPerfil();
+        init();
+      } else {
+        document.getElementById('login-erro').style.display = 'block';
+      }
+    }
+
+    function fazerLogout() {
+      sessionStorage.removeItem('adt_user');
+      window.location.reload();
+    }
+
+    function verificarSessao() {
+      const sessao = sessionStorage.getItem('adt_user');
+      if (sessao) {
+        usuarioLogado = JSON.parse(sessao);
+        document.getElementById('screen-login').style.display = 'none';
+        document.getElementById('app-main').style.display = 'block';
+        document.getElementById('user-display').innerText = `👤 ${usuarioLogado.nome} (${usuarioLogado.perfil.toUpperCase()})`;
+        configurarMenuPorPerfil();
+        init();
+      }
+    }
+
+    function configurarMenuPorPerfil() {
+      const nav = document.getElementById('nav-principal');
+      nav.innerHTML = '';
+
+      if (usuarioLogado.perfil === 'diretoria') {
+        nav.innerHTML = `
+          <button class="active" onclick="mudarAba('dashboard', event)">🔒 Gestão à Vista (Diretoria)</button>
+          <button onclick="mudarAba('banco-produtos', event)">1. Produtos & Estoque</button>
+          <button onclick="mudarAba('cadastro-operadores', event)">2. Operadores Cadastrados</button>
+          <button onclick="mudarAba('banco-chapas', event)">3. Banco de Chapas / Nesting</button>
+          <button onclick="mudarAba('remessas', event)">4. Criar Remessa do Dia</button>
+          <button onclick="mudarAba('acompanhamento-remessas', event)">5. Painel do Programador</button>
+          <button onclick="mudarAba('painel-operadores', event)">6. Operação 4 Lasers</button>
+          <button onclick="mudarAba('historico-remessas', event)">7. 📁 Histórico</button>
+        `;
+        mudarAbaDireto('dashboard');
+      } else if (usuarioLogado.perfil === 'pcp') {
+        nav.innerHTML = `
+          <button class="active" onclick="mudarAba('banco-produtos', event)">1. Produtos & Estoque</button>
+          <button onclick="mudarAba('cadastro-operadores', event)">2. Operadores Cadastrados</button>
+          <button onclick="mudarAba('banco-chapas', event)">3. Banco de Chapas / Nesting</button>
+          <button onclick="mudarAba('remessas', event)">4. Criar Remessa do Dia</button>
+          <button onclick="mudarAba('acompanhamento-remessas', event)">5. Painel do Programador</button>
+          <button onclick="mudarAba('painel-operadores', event)">6. Operação 4 Lasers</button>
+          <button onclick="mudarAba('historico-remessas', event)">7. 📁 Histórico</button>
+        `;
+        mudarAbaDireto('banco-produtos');
+      } else if (usuarioLogado.perfil === 'operador') {
+        nav.innerHTML = `
+          <button class="active" onclick="mudarAba('painel-operadores', event)">6. Operação 4 Lasers</button>
+        `;
+        mudarAbaDireto('painel-operadores');
+      }
+    }
+
+    function mudarAbaDireto(id) {
+      document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
+      const el = document.getElementById(id);
+      if (el) el.classList.add('active');
+    }
+
+    let produtosCadastrados = [
+      { id: 'p1', nome: '300mm (Redondo 30cm)', sku: 'RED-300', estoque: 0 },
+      { id: 'p2', nome: '250mm (Redondo 25cm)', sku: 'RED-250', estoque: 0 },
+      { id: 'p3', nome: '200mm (Redondo 20cm)', sku: 'RED-200', estoque: 0 },
+      { id: 'p4', nome: '125mm (Redondo 12.5cm)', sku: 'RED-125', estoque: 0 }
+    ];
+
+    let operadoresCadastrados = [
+      { id: 'op1', nome: 'João Silva' },
+      { id: 'op2', nome: 'Carlos Eduardo' },
+      { id: 'op3', nome: 'Marcos Antonio' }
+    ];
+
+    let bancoChapas = [
+      {
+        id: 'b1',
+        codigo: 'Ch30_MIX',
+        tempoMin: 12,
+        mdf: '3mm',
+        itens: [
+          { produto: '300mm (Redondo 30cm)', qtd: 38 },
+          { produto: '200mm (Redondo 20cm)', qtd: 6 },
+          { produto: '125mm (Redondo 12.5cm)', qtd: 5 }
+        ]
+      },
+      {
+        id: 'b2',
+        codigo: 'CH25',
+        tempoMin: 11,
+        mdf: '3mm',
+        itens: [
+          { produto: '250mm (Redondo 25cm)', qtd: 63 },
+          { produto: '200mm (Redondo 20cm)', qtd: 8 }
+        ]
+      },
+      {
+        id: 'b3',
+        codigo: 'Ch20_PURO',
+        tempoMin: 10,
+        mdf: '3mm',
+        itens: [
+          { produto: '200mm (Redondo 20cm)', qtd: 70 }
+        ]
+      }
+    ];
+
+    let remessasFilaPCP = []; 
+    let remessasGerais = [];  
+    let lotesLasers = [];
+    let planoSugeridoAtual = []; 
+    let chartLasersObj = null;
+    let chartRemessasObj = null;
+
+    function init() {
+      carregarDadosLocais();
+
+      const hoje = new Date().toISOString().split('T')[0];
+      const elData = document.getElementById('remessa-data');
+      if (elData) elData.value = hoje;
+
+      renderizarProdutos();
+      renderizarOperadores();
+      renderizarBancoChapas();
+      renderizarRemessaItensForm();
+      renderizarStatusProgramador();
+      renderizarPainelLasers();
+      renderizarHistorico();
+      if (usuarioLogado && usuarioLogado.perfil === 'diretoria') atualizarDashboard();
+    }
+
+    function mudarAba(id, ev) {
+      document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
+      document.querySelectorAll('nav button').forEach(e => e.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      if (ev && ev.target) ev.target.classList.add('active');
+      if (id === 'dashboard' && usuarioLogado.perfil === 'diretoria') atualizarDashboard();
+    }
+
+    // PRODUTOS
+    function cadastrarProduto(e) {
+      e.preventDefault();
+      const nome = document.getElementById('prod-nome').value;
+      const sku = document.getElementById('prod-sku').value || 'SKU-' + Date.now();
+      const estoque = Number(document.getElementById('prod-estoque').value) || 0;
+
+      let achou = produtosCadastrados.find(p => p.nome === nome);
+      if (achou) {
+        achou.estoque = estoque;
+      } else {
+        produtosCadastrados.push({ id: 'p' + Date.now(), nome, sku, estoque });
+      }
+
+      salvarDadosLocais();
+      renderizarProdutos();
+      e.target.reset();
+    }
+
+    function renderizarProdutos() {
+      const tb = document.getElementById('tb-produtos-lista');
+      if(!tb) return;
+      tb.innerHTML = produtosCadastrados.map(p => `
+        <tr>
+          <td><strong>${p.nome}</strong></td>
+          <td>${p.sku}</td>
+          <td><strong style="color:var(--success)">${p.estoque} peças</strong></td>
+          <td><button class="btn btn-sm btn-secondary" onclick="ajustarEstoqueManual('${p.id}')">✏ Ajustar Saldo</button></td>
+        </tr>
+      `).join('');
+
+      const selRemessa = document.getElementById('remessa-produto');
+      if(selRemessa) selRemessa.innerHTML = produtosCadastrados.map(p => `<option value="${p.nome}">${p.nome} (Estoque: ${p.estoque})</option>`).join('');
+    }
+
+    function ajustarEstoqueManual(id) {
+      const p = produtosCadastrados.find(x => x.id === id);
+      if (p) {
+        let novo = prompt(`Informe a nova contagem física em estoque para: ${p.nome}`, p.estoque);
+        if (novo !== null && !isNaN(novo)) {
+          p.estoque = Number(novo);
+          salvarDadosLocais();
+          renderizarProdutos();
+        }
+      }
+    }
+
+    // OPERADORES
+    function cadastrarOperadorFixo(e) {
+      e.preventDefault();
+      const nome = document.getElementById('op-nome-novo').value.trim();
+      if (nome) {
+        operadoresCadastrados.push({ id: 'op_' + Date.now(), nome });
+        salvarDadosLocais();
+        renderizarOperadores();
+        renderizarPainelLasers();
+        e.target.reset();
+      }
+    }
+
+    function renderizarOperadores() {
+      const tb = document.getElementById('tb-operadores-lista');
+      if (!tb) return;
+      tb.innerHTML = operadoresCadastrados.map(o => `
+        <tr>
+          <td><strong>${o.nome}</strong></td>
+          <td><span class="badge badge-ok">ATIVO</span></td>
+          <td><button class="btn btn-sm btn-danger" onclick="excluirOperador('${o.id}')">Excluir</button></td>
+        </tr>
+      `).join('');
+    }
+
+    function excluirOperador(id) {
+      operadoresCadastrados = operadoresCadastrados.filter(o => o.id !== id);
+      salvarDadosLocais();
+      renderizarOperadores();
+      renderizarPainelLasers();
+    }
+
+    // CHAPAS
+    let contadorComposicao = 0;
+    function addComposicaoItem(pSelected = '', qValue = '') {
+      const container = document.getElementById('itens-chapa-container');
+      if (!container) return;
+      const div = document.createElement('div');
+      div.className = 'linha-comp';
+      div.id = 'comp-' + contadorComposicao;
+
+      let options = produtosCadastrados.map(p => `<option value="${p.nome}" ${p.nome===pSelected?'selected':''}>${p.nome}</option>`).join('');
+
+      div.innerHTML = `
+        <select class="comp-p" style="margin-bottom:0;">${options}</select>
+        <input type="number" class="comp-q" placeholder="Qtd pçs" value="${qValue}" style="margin-bottom:0; width:120px;" required>
+        <button type="button" class="btn btn-sm btn-danger" onclick="removerLinhaChapa('${div.id}')">X</button>
+      `;
+      container.appendChild(div);
+      contadorComposicao++;
+    }
+
+    function removerLinhaChapa(id) {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    }
+
+    function cadastrarChapa(e) {
+      e.preventDefault();
+      const codigo = document.getElementById('chapa-codigo').value;
+      const tempoMin = Number(document.getElementById('chapa-tempo').value);
+      const mdf = document.getElementById('chapa-mdf').value;
+
+      const ps = document.querySelectorAll('.comp-p');
+      const qs = document.querySelectorAll('.comp-q');
+      let itens = [];
+
+      ps.forEach((el, idx) => {
+        if (el.value && qs[idx].value) {
+          itens.push({ produto: el.value, qtd: Number(qs[idx].value) });
+        }
+      });
+
+      bancoChapas.push({ id: 'b' + Date.now(), codigo, tempoMin, mdf, itens });
+      salvarDadosLocais();
+      renderizarBancoChapas();
+      e.target.reset();
+      document.getElementById('itens-chapa-container').innerHTML = '';
+      addComposicaoItem();
+    }
+
+    function renderizarBancoChapas() {
+      const el = document.getElementById('lista-banco-chapas');
+      if (!el) return;
+      el.innerHTML = bancoChapas.map(c => `
+        <div style="background:#2a2a2a; padding:10px; border-radius:5px; margin-bottom:10px;">
+          <strong>Chapa: ${c.codigo}</strong> (${c.mdf} - ${c.tempoMin} min/corte)
+          <ul style="font-size:11px; margin-left:15px; margin-top:5px;">
+            ${c.itens.map(i => `<li>${i.qtd}un de ${i.produto}</li>`).join('')}
+          </ul>
+        </div>
+      `).join('');
+    }
+
+    // REMESSAS
+    function renderizarRemessaItensForm() {
+      const tb = document.getElementById('tb-remessa-itens');
+      if (!tb) return;
+      tb.innerHTML = '';
+
+      if (remessasFilaPCP.length === 0) {
+        tb.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#888;">Nenhum item adicionado ao pedido.</td></tr>';
+        document.getElementById('box-sugestao-chapas').style.display = 'none';
+        return;
+      }
+
+      remessasFilaPCP.forEach((item, idx) => {
+        const prodObj = produtosCadastrados.find(p => p.nome === item.produto);
+        const estDisponivel = prodObj ? prodObj.estoque : 0;
+        const abatido = Math.min(estDisponivel, item.qtdPedida);
+        const necCorte = Math.max(0, item.qtdPedida - abatido);
+
+        tb.innerHTML += `
+          <tr>
+            <td>${item.produto}</td>
+            <td>${item.qtdPedida} un</td>
+            <td style="color:var(--success)">-${abatido} un (Estoque)</td>
+            <td style="color:var(--warning)"><strong>${necCorte} un</strong></td>
+            <td><button class="btn btn-sm btn-danger" onclick="removerItemFila(${idx})">X</button></td>
+          </tr>
+        `;
+      });
+    }
+
+    function adicionarItemRemessa(e) {
+      e.preventDefault();
+      const nomeRemessa = document.getElementById('remessa-nome').value;
+      const data = document.getElementById('remessa-data').value;
+      const produto = document.getElementById('remessa-produto').value;
+      const qtdPedida = Number(document.getElementById('remessa-qtd').value);
+
+      remessasFilaPCP.push({ nomeRemessa, data, produto, qtdPedida });
+      salvarDadosLocais();
+      renderizarRemessaItensForm();
+    }
+
+    function removerItemFila(idx) {
+      remessasFilaPCP.splice(idx, 1);
+      salvarDadosLocais();
+      renderizarRemessaItensForm();
+    }
+
+    function calcularSugestaoChapas() {
+      if (remessasFilaPCP.length === 0) {
+        alert('Adicione pelo menos um produto na lista!');
+        return;
+      }
+
+      let necessidadeLiquida = {};
+      remessasFilaPCP.forEach(item => {
+        const prodObj = produtosCadastrados.find(p => p.nome === item.produto);
+        const estoqueUsado = prodObj ? Math.min(prodObj.estoque, item.qtdPedida) : 0;
+        necessidadeLiquida[item.produto] = Math.max(0, item.qtdPedida - estoqueUsado);
+      });
+
+      planoSugeridoAtual = [];
+      let produtosComFalta = Object.keys(necessidadeLiquida).filter(p => necessidadeLiquida[p] > 0);
+
+      while (produtosComFalta.length > 0) {
+        let prodFoco = produtosComFalta[0];
+        let necFoco = necessidadeLiquida[prodFoco];
+
+        let melhorChapa = null;
+        let maxUnidadePorChapa = 0;
+
+        bancoChapas.forEach(chapa => {
+          let itemC = chapa.itens.find(i => i.produto === prodFoco);
+          if (itemC && itemC.qtd > maxUnidadePorChapa) {
+            maxUnidadePorChapa = itemC.qtd;
+            melhorChapa = chapa;
+          }
+        });
+
+        if (!melhorChapa) {
+          alert(`⚠️ Não foi encontrada nenhuma chapa cadastrada para produzir: ${prodFoco}`);
+          return;
+        }
+
+        let chapasNecessarias = Math.ceil(necFoco / maxUnidadePorChapa);
+
+        planoSugeridoAtual.push({
+          chapaCodigo: melhorChapa.codigo,
+          qtdChapas: chapasNecessarias,
+          detalhesChapa: melhorChapa
+        });
+
+        melhorChapa.itens.forEach(iChapa => {
+          let gerado = iChapa.qtd * chapasNecessarias;
+          if (necessidadeLiquida[iChapa.produto] !== undefined) {
+            necessidadeLiquida[iChapa.produto] -= gerado;
+          }
+        });
+
+        produtosComFalta = Object.keys(necessidadeLiquida).filter(p => necessidadeLiquida[p] > 0);
+      }
+
+      const box = document.getElementById('box-sugestao-chapas');
+      const divConteudo = document.getElementById('conteudo-sugestao');
+      box.style.display = 'block';
+
+      divConteudo.innerHTML = planoSugeridoAtual.map(item => `
+        <div style="background:#252525; padding:8px 12px; border-radius:5px; margin-bottom:6px; font-size:12px;">
+          <strong style="color:var(--primary)">${item.qtdChapas} Chapas</strong> do modelo <strong>${item.chapaCodigo}</strong>
+          <div style="font-size:11px; color:#aaa; margin-top:2px;">
+            Produz neste lote: ${item.detalhesChapa.itens.map(i => (i.qtd * item.qtdChapas) + 'un de ' + i.produto).join(', ')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // APROVAR PLANO E LANÇAR REMESSA COM BALANÇO CONSOLIDADO MULTI-CHAPA
+    function aprovarEEnviarParaLasers() {
+      if (planoSugeridoAtual.length === 0) return;
+
+      const nomeRemessa = remessasFilaPCP[0].nomeRemessa;
+      const dataRemessa = remessasFilaPCP[0].data;
+
+      // 1. Abate o estoque das peças consumidas do saldo
+      remessasFilaPCP.forEach(item => {
+        const prodObj = produtosCadastrados.find(p => p.nome === item.produto);
+        if (prodObj && prodObj.estoque > 0) {
+          const usado = Math.min(prodObj.estoque, item.qtdPedida);
+          prodObj.estoque -= usado;
+        }
+      });
+
+      // 2. Calcula a produção TOTAL CONSOLIDADA de todas as chapas juntas
+      let producaoConsolidada = {};
+      planoSugeridoAtual.forEach(plano => {
+        plano.detalhesChapa.itens.forEach(iChapa => {
+          let gerado = iChapa.qtd * plano.qtdChapas;
+          producaoConsolidada[iChapa.produto] = (producaoConsolidada[iChapa.produto] || 0) + gerado;
+        });
+      });
+
+      // 3. Credita no Estoque APENAS O EXCESSO GLOBAL REAL do conjunto de chapas
+      Object.keys(producaoConsolidada).forEach(prodNome => {
+        const ped = remessasFilaPCP.find(p => p.produto === prodNome);
+        const qtdPedida = ped ? ped.qtdPedida : 0;
+        const totalProduzido = producaoConsolidada[prodNome];
+        const sobraExcessoReal = totalProduzido - Math.min(qtdPedida, totalProduzido);
+
+        if (sobraExcessoReal > 0) {
+          const prodObj = produtosCadastrados.find(p => p.nome === prodNome);
+          if (prodObj) {
+            prodObj.estoque += sobraExcessoReal; // Adiciona exatamente a sobra final
+          }
+        }
+      });
+
+      // 4. Cria o registro unificado da remessa
+      const idUnicoRemessa = 'rem_' + Date.now();
+      let novaRemessa = {
+        id: idUnicoRemessa,
+        nome: nomeRemessa,
+        data: dataRemessa,
+        statusCiclo: 'Ativa',
+        planosChapas: planoSugeridoAtual,
+        itensPedidos: [...remessasFilaPCP]
+      };
+
+      remessasGerais.push(novaRemessa);
+
+      // Divisão nos 4 Lasers por chapa
+      planoSugeridoAtual.forEach(plano => {
+        const lasers = ['Laser 1', 'Laser 2', 'Laser 3', 'Laser 4'];
+        let base = Math.floor(plano.qtdChapas / 4);
+        let sobra = plano.qtdChapas % 4;
+
+        lasers.forEach((laserNome, idx) => {
+          let chapasDoLaser = base + (idx < sobra ? 1 : 0);
+          if (chapasDoLaser > 0) {
+            lotesLasers.push({
+              id: 'l_' + novaRemessa.id + '_' + Math.random(),
+              laser: laserNome,
+              remessaId: novaRemessa.id,
+              remessaNome: novaRemessa.nome,
+              chapaCodigo: plano.chapaCodigo,
+              chapasTotais: chapasDoLaser,
+              chapasConcluidas: 0,
+              tempoMinUnit: plano.detalhesChapa.tempoMin,
+              status: 'Pendente',
+              operador: '',
+              turno: '1º Turno',
+              horaFimPrevista: null,
+              foiParcial: false
+            });
+          }
+        });
+      });
+
+      remessasFilaPCP = [];
+      planoSugeridoAtual = [];
+      document.getElementById('box-sugestao-chapas').style.display = 'none';
+
+      salvarDadosLocais();
+      renderizarRemessaItensForm();
+      renderizarProdutos();
+      renderizarStatusProgramador();
+      renderizarPainelLasers();
+      if (usuarioLogado && usuarioLogado.perfil === 'diretoria') atualizarDashboard();
+
+      alert(`⚡ Remessa lançada com sucesso! O saldo acumulado multi-chapa e as sobras de estoque foram calculados em tempo real.`);
+    }
+
+    // PAINEL PROGRAMADOR (BALANÇO CONSOLIDADO MULTI-CHAPA)
+    function renderizarStatusProgramador() {
+      const tbStatus = document.getElementById('tb-status-remessas');
+      if (!tbStatus) return;
+
+      const remessasAtivas = remessasGerais.filter(r => r.statusCiclo === 'Ativa');
+      tbStatus.innerHTML = '';
+
+      const containerDetalhes = document.getElementById('detalhes-remessas-container');
+      containerDetalhes.innerHTML = '';
+
+      if (remessasAtivas.length === 0) {
+        tbStatus.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#888;">Nenhuma remessa ativa no momento.</td></tr>';
+        return;
+      }
+
+      remessasAtivas.forEach(rem => {
+        const lotesDaRem = lotesLasers.filter(l => l.remessaId === rem.id);
+        
+        let chapasTotais = lotesDaRem.reduce((acc, c) => acc + c.chapasTotais, 0);
+        let chapasConcluidas = lotesDaRem.reduce((acc, c) => acc + c.chapasConcluidas, 0);
+        let pct = chapasTotais > 0 ? Math.round((chapasConcluidas / chapasTotais) * 100) : 0;
+
+        let statusGeral = pct === 100 ? 'Concluída 100%' : lotesDaRem.some(l => l.status === 'Em Corte') ? 'Em Corte' : 'Pendente';
+
+        let listaChapasTxt = rem.planosChapas ? rem.planosChapas.map(p => `${p.qtdChapas}x ${p.chapaCodigo}`).join(', ') : rem.chapaCodigo;
+
+        tbStatus.innerHTML += `
+          <tr>
+            <td>${rem.data}</td>
+            <td><strong>${rem.nome}</strong> (${listaChapasTxt})</td>
+            <td>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: ${pct}%;"></div>
+                <div class="progress-text">${pct}%</div>
+              </div>
+            </td>
+            <td>${chapasConcluidas} / ${chapasTotais} chapas</td>
+            <td><span class="badge ${pct===100?'badge-ok':'badge-corte'}">${statusGeral}</span></td>
+            <td>
+              <button class="btn btn-sm btn-success" onclick="arquivarRemessaDireto('${rem.id}')">📁 Arquivar Remessa</button>
+            </td>
+          </tr>
+        `;
+
+        // CONSOLIDAÇÃO MULTI-CHAPA CONJUNTA
+        let producaoAcumuladaRemessa = {};
+        
+        // Mapeia todas as peças cortadas nas chapas dessa remessa
+        lotesDaRem.forEach(lote => {
+          const chapaObj = bancoChapas.find(c => c.codigo === lote.chapaCodigo);
+          if (chapaObj) {
+            chapaObj.itens.forEach(iChapa => {
+              const gerado = iChapa.qtd * lote.chapasConcluidas;
+              producaoAcumuladaRemessa[iChapa.produto] = (producaoAcumuladaRemessa[iChapa.produto] || 0) + gerado;
+            });
+          }
+        });
+
+        // Junta todos os produtos envolvidos no pedido ou na produção
+        let todosProdutosRemessa = Array.from(new Set([
+          ...rem.itensPedidos.map(p => p.produto),
+          ...Object.keys(producaoAcumuladaRemessa)
+        ]));
+
+        let htmlBalançoConsolidado = todosProdutosRemessa.map(prodNome => {
+          const ped = rem.itensPedidos.find(p => p.produto === prodNome);
+          const qtdPedida = ped ? ped.qtdPedida : 0;
+          const geradoTotalRemessa = producaoAcumuladaRemessa[prodNome] || 0;
+          const saldoFinalRemessa = geradoTotalRemessa - qtdPedida;
+
+          let statusTxt = saldoFinalRemessa >= 0 ? 
+            `<strong style="color:var(--info)">+${saldoFinalRemessa} un (Sombra Já Entrou no Estoque)</strong>` : 
+            `<strong style="color:var(--warning)">Faltam ${Math.abs(saldoFinalRemessa)} un (Aguardando Corte)</strong>`;
+
+          return `
+            <tr>
+              <td><strong>${prodNome}</strong></td>
+              <td>${qtdPedida} un</td>
+              <td><strong>${geradoTotalRemessa} un</strong> (Soma Multi-Chapa)</td>
+              <td>${statusTxt}</td>
+            </tr>
+          `;
+        }).join('');
+
+        containerDetalhes.innerHTML += `
+          <div class="card">
+            <h3>Balanço Consolidado da ${rem.nome} — Produção Acumulada da Remessa</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th>Pedido Total Cliente</th>
+                  <th>Total Produzido no Corte (Acumulado)</th>
+                  <th>Status Consolidado do Estoque</th>
+                </tr>
+              </thead>
+              <tbody>${htmlBalançoConsolidado}</tbody>
+            </table>
+          </div>
+        `;
+      });
+    }
+
+    function arquivarRemessaDireto(id) {
+      const rem = remessasGerais.find(r => r.id === id);
+      if (rem) {
+        rem.statusCiclo = 'Arquivada';
+        salvarDadosLocais();
+        renderizarStatusProgramador();
+        renderizarPainelLasers();
+        renderizarHistorico();
+        if (usuarioLogado && usuarioLogado.perfil === 'diretoria') atualizarDashboard();
+      }
+    }
+
+    function arquivarRemessasConcluidas() {
+      remessasGerais.forEach(rem => {
+        const lotesDaRem = lotesLasers.filter(l => l.remessaId === rem.id);
+        let chapasTotais = lotesDaRem.reduce((acc, c) => acc + c.chapasTotais, 0);
+        let chapasConcluidas = lotesDaRem.reduce((acc, c) => acc + c.chapasConcluidas, 0);
+
+        if (chapasTotais > 0 && chapasTotais === chapasConcluidas) {
+          rem.statusCiclo = 'Arquivada';
+        }
+      });
+      salvarDadosLocais();
+      renderizarStatusProgramador();
+      renderizarHistorico();
+    }
+
+    // PAINEL OPERADORES
+    function renderizarPainelLasers() {
+      const container = document.getElementById('grid-painel-4-lasers');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const lasers = ['Laser 1', 'Laser 2', 'Laser 3', 'Laser 4'];
+
+      lasers.forEach(laserNome => {
+        const lotesPendentes = lotesLasers.filter(l => {
+          const parentRem = remessasGerais.find(r => r.id === l.remessaId);
+          return parentRem && parentRem.statusCiclo === 'Ativa' && l.status !== 'Concluído' && l.laser === laserNome;
+        });
+
+        let htmlLotes = lotesPendentes.map(lote => `
+          <div class="operador-item">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong>${lote.chapaCodigo}</strong>
+              <span class="badge ${lote.status==='Em Corte'?'badge-corte':lote.status==='Em Pausa / Setup'?'badge-pausa':'badge-pendente'}">${lote.status}</span>
+            </div>
+            
+            <div style="font-size:11px; margin-top:4px;">Remessa: <strong>${lote.remessaNome}</strong></div>
+            <div style="font-size:11px;">Chapas: <strong>${lote.chapasConcluidas} / ${lote.chapasTotais} chapas</strong></div>
+
+            <div style="margin-top:8px;">
+              <label><span style="color:red;">*</span> Operador Responsável:</label>
+              <select onchange="atualizarOperador('${lote.id}', this.value)" style="margin-bottom:6px; padding:4px 6px; font-size:11px; border-color:${!lote.operador?'var(--danger)':'var(--border)'}">
+                <option value="">Selecione o Operador...</option>
+                ${operadoresCadastrados.map(o => `<option value="${o.nome}" ${lote.operador===o.nome?'selected':''}>${o.nome}</option>`).join('')}
+              </select>
+
+              <label>Turno:</label>
+              <select onchange="atualizarTurno('${lote.id}', this.value)" style="margin-bottom:6px; padding:4px 6px; font-size:11px;">
+                <option value="1º Turno" ${lote.turno==='1º Turno'?'selected':''}>1º Turno</option>
+                <option value="2º Turno" ${lote.turno==='2º Turno'?'selected':''}>2º Turno</option>
+                <option value="3º Turno" ${lote.turno==='3º Turno'?'selected':''}>3º Turno</option>
+              </select>
+            </div>
+
+            ${lote.horaFimPrevista ? `
+              <div style="background:rgba(33,150,243,0.15); padding:6px; font-size:11px; margin-top:5px; border-radius:4px;">
+                ⏱ Término Previsto: <strong>${lote.horaFimPrevista}</strong>
+              </div>
+            ` : ''}
+
+            <div style="display:flex; gap:4px; margin-top:10px; flex-wrap:wrap;">
+              <button class="btn btn-sm btn-info" style="flex:1;" onclick="iniciarCorteEPrevisao('${lote.id}')">▶ Iniciar</button>
+              <button class="btn btn-sm btn-warning" onclick="alterarEstadoLote('${lote.id}', 'Em Pausa / Setup')">⏸ Pausa</button>
+              <button class="btn btn-sm btn-secondary" onclick="baixaParcialLote('${lote.id}')">✂ Parcial</button>
+              <button class="btn btn-sm btn-success" style="width:100%; margin-top:4px;" onclick="finalizarLoteEProseguir('${lote.id}')">✓ Finalizar Total</button>
+            </div>
+          </div>
+        `).join('');
+
+        container.innerHTML += `
+          <div class="laser-card">
+            <h4 style="color:var(--primary); margin-bottom:10px; font-size:15px;">${laserNome}</h4>
+            ${lotesPendentes.length === 0 ? '<p style="font-size:11px; color:#666; text-align:center; padding:15px 0;">Nenhum corte pendente nesta máquina.</p>' : htmlLotes}
+          </div>
+        `;
+      });
+    }
+
+    function atualizarOperador(id, val) {
+      const lote = lotesLasers.find(l => l.id === id);
+      if (lote) {
+        lote.operador = val;
+        salvarDadosLocais();
+      }
+    }
+
+    function atualizarTurno(id, val) {
+      const lote = lotesLasers.find(l => l.id === id);
+      if (lote) {
+        lote.turno = val;
+        salvarDadosLocais();
+      }
+    }
+
+    function validarOperador(lote) {
+      if (!lote.operador || lote.operador.trim() === '') {
+        alert('⚠️ Escolha o Nome do Operador antes de operar a máquina.');
+        return false;
+      }
+      return true;
+    }
+
+    function iniciarCorteEPrevisao(id) {
+      const lote = lotesLasers.find(l => l.id === id);
+      if (lote) {
+        if (!validarOperador(lote)) return;
+
+        lote.status = 'Em Corte';
+        const tempoRestanteMin = (lote.chapasTotais - lote.chapasConcluidas) * lote.tempoMinUnit;
+        const agora = new Date();
+        agora.setMinutes(agora.getMinutes() + tempoRestanteMin);
+        
+        const horaStr = agora.getHours().toString().padStart(2, '0') + ':' + agora.getMinutes().toString().padStart(2, '0');
+        lote.horaFimPrevista = horaStr;
+
+        salvarDadosLocais();
+        renderizarPainelLasers();
+        renderizarStatusProgramador();
+        if (usuarioLogado && usuarioLogado.perfil === 'diretoria') atualizarDashboard();
+      }
+    }
+
+    function baixaParcialLote(id) {
+      const lote = lotesLasers.find(l => l.id === id);
+      if (lote) {
+        if (!validarOperador(lote)) return;
+
+        let qtd = prompt(`Quantas chapas das ${lote.chapasTotais} foram CORTADAS por ${lote.operador}?`, lote.chapasConcluidas);
+        if (qtd !== null && !isNaN(qtd)) {
+          lote.chapasConcluidas = Number(qtd);
+          lote.status = 'Concluído';
+          lote.foiParcial = true;
+
+          salvarDadosLocais();
+          renderizarPainelLasers();
+          renderizarStatusProgramador();
+          if (usuarioLogado && usuarioLogado.perfil === 'diretoria') atualizarDashboard();
+        }
+      }
+    }
+
+    function alterarEstadoLote(id, novoEstado) {
+      const lote = lotesLasers.find(l => l.id === id);
+      if (lote) {
+        lote.status = novoEstado;
+        salvarDadosLocais();
+        renderizarPainelLasers();
+        renderizarStatusProgramador();
+        if (usuarioLogado && usuarioLogado.perfil === 'diretoria') atualizarDashboard();
+      }
+    }
+
+    function finalizarLoteEProseguir(id) {
+      const lote = lotesLasers.find(l => l.id === id);
+      if (lote) {
+        if (!validarOperador(lote)) return;
+
+        lote.chapasConcluidas = lote.chapasTotais;
+        lote.status = 'Concluído';
+
+        salvarDadosLocais();
+        renderizarPainelLasers();
+        renderizarStatusProgramador();
+        if (usuarioLogado && usuarioLogado.perfil === 'diretoria') atualizarDashboard();
+      }
+    }
+
+    function renderizarHistorico() {
+      const tb = document.getElementById('tb-historico-remessas');
+      if (!tb) return;
+
+      const remessasArquivadas = remessasGerais.filter(r => r.statusCiclo === 'Arquivada');
+
+      if (remessasArquivadas.length === 0) {
+        tb.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#888;">Nenhuma remessa arquivada no histórico.</td></tr>';
+        return;
+      }
+
+      tb.innerHTML = remessasArquivadas.map(r => {
+        let listaChapasTxt = r.planosChapas ? r.planosChapas.map(p => `${p.qtdChapas}x ${p.chapaCodigo}`).join(', ') : r.chapaCodigo;
+        return `
+          <tr>
+            <td>${r.data}</td>
+            <td><strong>${r.nome}</strong></td>
+            <td>${listaChapasTxt}</td>
+            <td><span class="badge badge-archived">ARQUIVADA</span></td>
+            <td><button class="btn btn-sm btn-secondary" onclick="desarquivarRemessa('${r.id}')">Reativar</button></td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function desarquivarRemessa(id) {
+      const rem = remessasGerais.find(r => r.id === id);
+      if (rem) {
+        rem.statusCiclo = 'Ativa';
+        salvarDadosLocais();
+        renderizarStatusProgramador();
+        renderizarHistorico();
+      }
+    }
+
+    // DASHBOARD
+    function atualizarDashboard() {
+      const containerAoVivo = document.getElementById('grid-ao-vivo-diretoria');
+      if (!containerAoVivo) return;
+      containerAoVivo.innerHTML = '';
+
+      const lasers = ['Laser 1', 'Laser 2', 'Laser 3', 'Laser 4'];
+
+      lasers.forEach(laserNome => {
+        const loteEmAndamento = lotesLasers.find(l => {
+          const parentRem = remessasGerais.find(r => r.id === l.remessaId);
+          return parentRem && parentRem.statusCiclo === 'Ativa' && l.status === 'Em Corte' && l.laser === laserNome;
+        });
+
+        if (loteEmAndamento) {
+          containerAoVivo.innerHTML += `
+            <div class="card-ao-vivo">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <strong>${laserNome}</strong>
+                <span class="badge badge-corte">🔥 EM CORTE</span>
+              </div>
+              <div style="font-size:12px; margin-top:5px;">Chapa: <strong>${loteEmAndamento.chapaCodigo}</strong></div>
+              <div style="font-size:11px; color:#aaa;">Remessa: ${loteEmAndamento.remessaNome}</div>
+              <div style="font-size:11px; color:#aaa;">Operador: <strong>${loteEmAndamento.operador || 'Não informado'}</strong> (${loteEmAndamento.turno})</div>
+              <div style="font-size:11px; color:var(--success); font-weight:bold; margin-top:4px;">⏱ Previsão Término: ${loteEmAndamento.horaFimPrevista || '--:--'}</div>
+            </div>
+          `;
+        } else {
+          containerAoVivo.innerHTML += `
+            <div style="background:#252525; border:1px solid #333; border-radius:6px; padding:12px;">
+              <strong>${laserNome}</strong>
+              <div style="font-size:11px; color:#666; margin-top:5px;">Aguardando Início / Ociosa</div>
+            </div>
+          `;
+        }
+      });
+
+      let chapasCortadasTotal = lotesLasers.reduce((acc, l) => acc + l.chapasConcluidas, 0);
+      let totalPecasTotal = 0;
+
+      lotesLasers.forEach(lote => {
+        const chapa = bancoChapas.find(b => b.codigo === lote.chapaCodigo);
+        if (chapa) {
+          const pecasPorChapa = chapa.itens.reduce((acc, i) => acc + i.qtd, 0);
+          totalPecasTotal += pecasPorChapa * lote.chapasConcluidas;
+        }
+      });
+
+      document.getElementById('kpi-chapas-mes').innerText = chapasCortadasTotal;
+      document.getElementById('kpi-mdf-mes').innerText = (chapasCortadasTotal * 2.97).toFixed(1) + ' m²';
+      document.getElementById('kpi-pecas-mes').innerText = totalPecasTotal;
+      document.getElementById('kpi-remessas-ativas').innerText = remessasGerais.filter(r => r.statusCiclo === 'Ativa').length;
+
+      const cortesPorLaser = lasers.map(l => lotesLasers.filter(x => x.laser === l).reduce((acc, curr) => acc + curr.chapasConcluidas, 0));
+
+      if (chartLasersObj) chartLasersObj.destroy();
+      const ctx1 = document.getElementById('chartLasers').getContext('2d');
+      chartLasersObj = new Chart(ctx1, {
+        type: 'bar',
+        data: {
+          labels: lasers,
+          datasets: [{
+            label: 'Chapas Cortadas',
+            data: cortesPorLaser,
+            backgroundColor: '#e65100'
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+      });
+
+      let concluidas = remessasGerais.filter(r => r.statusCiclo === 'Arquivada').length;
+      let ativas = remessasGerais.filter(r => r.statusCiclo === 'Ativa').length;
+
+      if (chartRemessasObj) chartRemessasObj.destroy();
+      const ctx2 = document.getElementById('chartRemessas').getContext('2d');
+      chartRemessasObj = new Chart(ctx2, {
+        type: 'doughnut',
+        data: {
+          labels: ['Concluídas / Arquivadas', 'Em Andamento'],
+          datasets: [{
+            data: [concluidas, ativas],
+            backgroundColor: ['#4caf50', '#ff9800']
+          }]
+        },
+        options: { responsive: true }
+      });
+    }
+
+    addComposicaoItem();
+    verificarSessao();
+  </script>
+</body>
+</html>
